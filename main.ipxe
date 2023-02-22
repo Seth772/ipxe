@@ -1,0 +1,100 @@
+#!ipxe
+:MENU
+menu
+item --gap -- ----------------Operating System Installation ------------------
+item keydeploy	Key Deploy
+item ubuntu	Ubuntu 22.04 LTS Installation
+item --gap -- ----------------Disk Wiping Software ---------------------------
+item pmagic	Parted Magic - Requires 8GB RAM
+item diskwipe	Disk Wipe
+item --gap -- ----------------Utilities --------------------------------------
+item memtest	Memtest86+
+item --gap -- ----------------iPXE Shell -------------------------------------
+item shell	iPXE Shell
+choose --default return --timeout 20000 target && goto ${target}
+cpair --foreground 5 --background 7 0
+
+:keydeploy
+
+#kernel http://192.168.1.107/bootx64.efi
+#boot
+
+
+
+kernel http://192.168.1.107/keydeploy/wimboot gui
+initrd http://192.168.1.107/keydeploy/BCD
+initrd http://192.168.1.107/keydeploy/boot.sdi
+initrd http://192.168.1.107/sources/boot.wim
+boot
+goto MENU
+
+:ubuntu
+
+set base-url http://192.168.1.107/ubuntu/22.04
+kernel ${base-url}/casper/vmlinuz
+initrd ${base-url}/casper/initrd
+imgargs vmlinuz initrd=initrd \
+ ip=dhcp \
+ url=${base-url}//${baseurl}install.iso \
+ cloud-config-url=/dev/null\
+ autoinstall \
+ ds=nocloud-net;s=http://192.168.1.107/ubuntu/22.04/jammy/ \
+echo Booting Ubuntu 22.04 installer...
+boot
+goto MENU
+
+
+
+:pmagic
+
+kernel http://192.168.1.107/pmagic/bzImage initrd=initrd.img initrd=fu.img initrd=m.img edd=on vga=normal netsrc=wget neturl="http://192.168.1.107:/pmagic/pmodules/"
+initrd http://192.168.1.107/pmagic/initrd.img
+initrd http://192.168.1.107/pmagic/fu.img
+initrd http://192.168.1.107/pmagic/m.img
+#initrd http://192.168.1.107/pmagic/files.cgz
+boot
+
+goto MENU
+
+
+:diskwipe
+
+echo Loading files for Disk Wiping
+echo
+
+set base-url http://192.168.1.107/ubuntu/22.04
+kernel ${base-url}/casper/vmlinuz
+initrd ${base-url}/casper/initrd
+imgargs vmlinuz initrd=initrd \
+ ip=dhcp \
+ cloud-config-url=/dev/null \
+ url=${base-url}//${baseurl}install.iso \
+ ds='nocloud-net;s=http://192.168.1.107/ubuntu/22.04/jammy/' \
+ autoinstall \
+boot 
+
+goto MENU
+
+:memtest
+
+kernel http://192.168.1.107/memtest/memtest64.efi 
+boot
+
+goto MENU
+
+cpuid --ext 29 && set arch 64 || set arch 32
+
+initrd ${pmagic-path}/initrd.img ||
+initrd ${pmagic-path}/fu.img ||
+initrd ${pmagic-path}/m.img ||
+initrd ${pmagic-path}/files.cgz ||
+chain ${pmagic-path}/bzImage${arch} initrd=initrd.img,fu.img,m.img,files.cgz edd=on vga=normal ||
+
+goto MENU
+
+:shell
+shell ||
+goto MENU
+
+autoboot
+
